@@ -144,6 +144,13 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
     pgroTot <- read_output("PlantGro.OUT") %>% dplyr::mutate(Date=DATE) %>% 
       dplyr::select(-DATE) %>% dplyr::relocate(Date)
 
+    # Add variables included in PlantGr2.OUT if Crop is Wheat 
+    if (model_options$Crop=="Wheat" & file.exists("PlantGr2.OUT")) {
+      pgr2 <- read_output("PlantGr2.OUT") %>% dplyr::mutate(Date=DATE) %>% 
+        dplyr::select(-DATE) %>% dplyr::relocate(Date)
+      pgroTot <- dplyr::left_join(pgroTot, pgr2, by= intersect(names(pgroTot), names(pgr2)))
+    }
+    
     for (situation in situation) {
       
       pgro <- dplyr::filter(pgroTot, TRNO==as.integer(situation))
