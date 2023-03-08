@@ -28,6 +28,12 @@
 #' must be returned. If not provided, the function will return results for all simulated
 #' variables.
 #'
+#' @param sit_var_dates_mask (optional) A named list
+#' containing a mask for variables and dates for which simulated values
+#' should be returned. Typically a list containing the observations to which
+#' simulations should be compared. The wrapper use this mask to provide simulated values 
+#' after maturity date if required (see details).
+#'
 #' @return A list containing simulated values. It include 2 elements:
 #'   - `sim_list`: a named list of tibbles, one tibble per situation, each tibble contains a 
 #'                 column Date storing the dates in Date or POSIXct format, plus one column 
@@ -38,6 +44,13 @@
 #' 
 #' @details This wrapper run the DSSAT model for an ensemble of situations (EXPERIMENT X Treatment number)
 #' and return associated results in cropr format.
+#'
+#' If argument sit_var_dates_mask is provided (which is the case during parameter estimation
+#' using the CroptimizR::estim_param function), and if maturity is reached before 
+#' the last date included in this mask for a given situation, then the simulated 
+#' results obtained at maturity are replicated up to this date.
+#' This guarantess the comparison of simulated and observed results regardless the 
+#' maturity date (which may evolve during the calibration process).
 #' 
 #' The very first version of this wrapper has been initiated by Jing Qi, Amir Souissi 
 #' and Samuel Buis for AgMIP Calibration project Phase III exercise.
@@ -46,7 +59,8 @@
 #' @importFrom lubridate year
 #' @import tidyr
 #' 
-DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL, ...) {
+DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL, 
+                          sit_var_dates_mask = NULL, ...) {
   
   on.exit({
     
@@ -150,13 +164,13 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
 
   # Read its outputs and store them in CroptimizR format
   if (file.exists("PlantGro.OUT")) {
-    pgroTot <- read_output("PlantGro.OUT") %>% dplyr::mutate(Date=DATE) %>% 
+    pgroTot <- as.data.frame(read_output("PlantGro.OUT")) %>% dplyr::mutate(Date=DATE) %>% 
       dplyr::select(-DATE) %>% dplyr::relocate(Date)
 
     # Add variables included in PlantGr2.OUT if Crop is Wheat 
     flag_pgr2 <- FALSE
     if (model_options$Crop=="Wheat" & file.exists("PlantGr2.OUT")) {
-      pgr2 <- read_output("PlantGr2.OUT") %>% dplyr::mutate(Date=DATE) %>% 
+      pgr2 <- as.data.frame(read_output("PlantGr2.OUT")) %>% dplyr::mutate(Date=DATE) %>% 
         dplyr::select(-DATE) %>% dplyr::relocate(Date)
       pgroTot <- dplyr::left_join(pgroTot, pgr2, by= intersect(names(pgroTot), names(pgr2)))
       flag_pgr2 <- TRUE
@@ -191,10 +205,11 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
         
         # Extrapolate julian days for Zadok stages posterior to these simulated (to take them into account if they are observed but not simulated ...)
         missingZadok <- wrapr::seqi(max(zadok_df$Zadok)+1,100)
-        endDate <- as.POSIXct(paste(lubridate::year(pgro$Date[nrow(pgro)]),"12","31",sep = "-"),format="%Y-%m-%d", tz="UTC")
+        
+        end_DOY <- as.POSIXct(paste(lubridate::year(pgro$Date[nrow(pgro)]),"12","31",sep = "-"),format="%Y-%m-%d", tz="UTC")
         
         if (length(missingZadok)>0) {
-          julianEndOfYear <- julian(as.Date(endDate), 
+          julianEndOfYear <- julian(as.Date(end_DOY), 
                                     origin=as.Date(paste(lubridate::year(zadok_df$dates[1]),"01","01",sep = "-"))) + 1
           
           dftmp <- data.frame(Zadok=missingZadok, julDay=julianEndOfYear[1], dates=NA)
@@ -203,14 +218,21 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
         
         df=as.data.frame(as.list(setNames(as.numeric(zadok_df$julDay),paste0("Zadok",zadok_df$Zadok))))
         
-        if (!(endDate %in% results$sim_list[[situation]]$Date)) {
-          results$sim_list[[situation]] <- 
-            dplyr::bind_rows(results$sim_list[[situation]],data.frame(Date=endDate))
-        }
-        
         results$sim_list[[situation]] <- 
           dplyr::bind_cols(results$sim_list[[situation]],df)
         
+      }
+
+      if (!is.null(sit_var_dates_mask)) {
+        end_date <- sit_var_dates_mask[[situation]]$Date[nrow(sit_var_dates_mask[[situation]])]
+        if (!(end_date %in% results$sim_list[[situation]]$Date)) {
+          dates_to_add <- seq(from = results$sim_list[[situation]]$Date[nrow(results$sim_list[[situation]])], 
+                              to=end_date, by = "days")[-1]
+          extension <- results$sim_list[[situation]] %>% 
+            dplyr::slice(rep(nrow(results$sim_list[[situation]]),each=length(dates_to_add)))
+          extension$Date <- dates_to_add
+          results$sim_list[[situation]] <- bind_rows(results$sim_list[[situation]], extension)
+        }
       }
 
       # Select variables for which results are required      
@@ -219,7 +241,6 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       }
       
     }
-    
     
     attr(results$sim_list, "class")= "cropr_simulation"
     

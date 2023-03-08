@@ -85,11 +85,13 @@ test_wrapper(model_function = DSSAT_wrapper, model_options = model_options,
 library(CroPlotR)
 library(CroptimizR)
 
+situation_name<- c("AQTB1101_2", "AQTB1201_5") 
+
 ## we set the true value of a given parameter
-param_true_values <- c(P1=150)
+param_true_values <- c(P1=350)
 
 ## we choose a few situations and a variable
-var_name <- "LAID"
+var_name <- "CWAD"
 
 ## we simulate a given variable using the true value of the parameter
 sim_true <- DSSAT_wrapper(param_values = param_true_values, 
@@ -107,7 +109,7 @@ p_before <- plot(sim_true=sim_true$sim_list, sim_default=sim_default$sim_list)
 
 ## we define synthetic observations by from true simulated values by selecting values and adding noise
 noise_sd <- 0.2
-obs_df <- bind_rows(sim_true$sim_list) %>% 
+obs_df <- CroPlotR::bind_rows(sim_true$sim_list) %>% 
   dplyr::slice(seq(from=1, to=nrow(.), by=10)) %>%
   dplyr::mutate(across(all_of(var_name), ~ .x + .x * truncnorm::rtruncnorm(length(.x), a=-3*noise_sd , b=3*noise_sd, sd=noise_sd)))
 obs_list <- split(obs_df, f = obs_df$situation, lex.order = TRUE)
