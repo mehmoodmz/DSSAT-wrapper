@@ -3,20 +3,20 @@
 #' @description This function runs DSSAT with given ecotype and/or cultivar parameter 
 #' values and returns its results as required by CroptimizR package.
 #'
-#' @param param_values (optional, NULL by default) a named vector that contains values
+#' @param param_values (optional, NULL by default, in that case default values of 
+#' the parameters as read in DSSAT inputs files are used) a named vector that contains values
 #' of DSSAT input parameters to use in the simulations. Should have one named column per
 #' parameter. If param_values is not provided or set to NULL, the simulations will
 #' be performed using the parameters values defined in the DSSAT input files referenced
 #' in model_options argument.
 #'
-#' @param situation Vector of situations (TRTNO) names for which results
+#' @param situation Vector of situation names (EXPERIMENT_NAME_TRNO) for which results
 #' must be returned.
 #'
 #' @param model_options List containing the information needed by the model.
 #'   `DSSAT_path`: path to DSSAT directory
 #'   `DSSAT_exe`: name of the model executable
 #'   `Crop`: name of the crop (i.e. of subdirectory in DSSAT path)
-#'   `experiment_file`: name of the .**X experiment file                 
 #'   `ecotype`: name of the ecotype
 #'   `cultivar`: name of the cultivar
 #'   `ecotype_filename`: name of the ecotype filename
@@ -36,13 +36,11 @@
 #'   - `error`: an error code indicating if at least one simulation ended 
 #'              with an error (TRUE) or if all simulations went OK (FALSE).
 #' 
-#' @details This wrapper simulates situations (TRTNO, treatment number) included 
-#' in a single experiment which filename is given in model_options$experiment_file and
-#' path in model_options$project_path.
-#' ecotype and cultivar could be retrieved from experiment_file and situation but seems 
-#' that reading experiment_file can be time consuming ...
+#' @details This wrapper run the DSSAT model for an ensemble of situations (EXPERIMENT X Treatment number)
+#' and return associated results in cropr format.
 #' 
-#' The very first version of this wrapper has been initiated by Jing Qi, Amir Souissi and Samuel Buis.
+#' The very first version of this wrapper has been initiated by Jing Qi, Amir Souissi 
+#' and Samuel Buis for AgMIP Calibration project Phase III exercise.
 #' 
 #' @importFrom wrapr seqi
 #' @importFrom lubridate year
@@ -54,17 +52,17 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
     
     # set the parameters file to their original values
     if (flag_eco_param) {
-      res <- file.rename(from=file.path(Genotype_path,paste0(ecotype_filename,"_tmp")),to=file.path(Genotype_path,ecotype_filename))
+      res <- file.rename(from=file.path(genotype_path,paste0(ecotype_filename,"_tmp")),to=file.path(genotype_path,ecotype_filename))
       if (!res) {
-        stop(paste("Unable to rename ",file.path(Genotype_path,paste0(ecotype_filename,"_tmp")),"in ",file.path(Genotype_path,ecotype_filename),
-                   ".\n This may alter the following results. Please allow write permissions on",file.path(Genotype_path,ecotype_filename)))
+        stop(paste("Unable to rename ",file.path(genotype_path,paste0(ecotype_filename,"_tmp")),"in ",file.path(genotype_path,ecotype_filename),
+                   ".\n This may alter the following results. Please allow write permissions on",file.path(genotype_path,ecotype_filename)))
       }
     }
     if (flag_cul_param) {
-      res <- file.rename(from=file.path(Genotype_path,paste0(cultivar_filename,"_tmp")),to=file.path(Genotype_path,cultivar_filename))
+      res <- file.rename(from=file.path(genotype_path,paste0(cultivar_filename,"_tmp")),to=file.path(genotype_path,cultivar_filename))
       if (!res) {
-        stop(paste("Unable to rename ",file.path(Genotype_path,paste0(cultivar_filename,"_tmp")),"in ",file.path(Genotype_path,cultivar_filename),
-                   ".\n This may alter the following results. Please allow write permissions on",file.path(Genotype_path,cultivar_filename)))
+        stop(paste("Unable to rename ",file.path(genotype_path,paste0(cultivar_filename,"_tmp")),"in ",file.path(genotype_path,cultivar_filename),
+                   ".\n This may alter the following results. Please allow write permissions on",file.path(genotype_path,cultivar_filename)))
       }
     }
     # come back to initial working directory
@@ -80,9 +78,9 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
   results <- list(sim_list = setNames(vector("list",length(situation)), nm = situation), error=FALSE)
   
   options(DSSAT.CSM = file.path(model_options$DSSAT_path,model_options$DSSAT_exe))
+  crop <- model_options$Crop
   project_path <- file.path(model_options$DSSAT_path,model_options$Crop)
-  Genotype_path <- file.path(model_options$DSSAT_path,model_options$Genotype)
-  experiment_file <- model_options$experiment_file
+  genotype_path <- file.path(model_options$DSSAT_path,"Genotype")
   ecotype_filename <- model_options$ecotype_filename
   cultivar_filename <- model_options$cultivar_filename
   ecotype <- model_options$ecotype
@@ -92,14 +90,18 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
   } else {
     suppress_output <- model_options$suppress_output
   }
-  
+  ## Retrieve the crop code
+  ## Currently deduced from ecotype filename but oculd be from Crop by reading DETAIL.CDE 
+  ## file once at first run and storing in environment
+  crop_code <- substr(model_options$ecotype_filename,1,2)
+
   # Force ecotype parameters if provided in param_values
   if (!is.null(param_values)) {
-    eco <- read_eco(file.path(Genotype_path,ecotype_filename))	  # read ecotype DSSAT file => put results in eco data.frame
+    eco <- read_eco(file.path(genotype_path,ecotype_filename))	  # read ecotype DSSAT file => put results in eco data.frame
     if (any (param_names %in% names(eco))) {   # if some parameters in param_values are ecotype parameters
-      res <- file.copy(from=file.path(Genotype_path,ecotype_filename),to=file.path(Genotype_path,paste0(ecotype_filename,"_tmp")),overwrite = TRUE)
+      res <- file.copy(from=file.path(genotype_path,ecotype_filename),to=file.path(genotype_path,paste0(ecotype_filename,"_tmp")),overwrite = TRUE)
       if (!res) {
-        stop(paste("Unable to copy ",file.path(Genotype_path,ecotype_filename)))
+        stop(paste("Unable to copy ",file.path(genotype_path,ecotype_filename)))
       }
       flag_eco_param = TRUE
       eco_paramNames <- intersect(param_names, names(eco))
@@ -107,17 +109,17 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       for (param in eco_paramNames) {   # modify their values in the eco data.frame
         eco[idx,param] <- param_values[param] 
       }      
-      write_eco(eco,file.path(Genotype_path,ecotype_filename))  # write the ecotype DSSAT file from the modified eco data.frame
+      write_eco(eco,file.path(genotype_path,ecotype_filename))  # write the ecotype DSSAT file from the modified eco data.frame
     }
   }
   
   # Force cultivar parameters if provided in param_values, same as for ecotype parameters but for cultivar ones
   if (!is.null(param_values)) {
-    cul <- read_cul(file.path(Genotype_path,cultivar_filename)) 
+    cul <- read_cul(file.path(genotype_path,cultivar_filename)) 
     if (any (param_names %in% names(cul))) {
-      res <- file.copy(from=file.path(Genotype_path,cultivar_filename),to=file.path(Genotype_path,paste0(cultivar_filename,"_tmp")),overwrite = TRUE)
+      res <- file.copy(from=file.path(genotype_path,cultivar_filename),to=file.path(genotype_path,paste0(cultivar_filename,"_tmp")),overwrite = TRUE)
       if (!res) {
-        stop(paste("Unable to copy ",file.path(Genotype_path,cultivar_filename)))
+        stop(paste("Unable to copy ",file.path(genotype_path,cultivar_filename)))
       }
       flag_cul_param = TRUE
       cul_paramNames <- intersect(param_names, names(cul))
@@ -129,13 +131,20 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
           cul[idx,param] <- param_values[param] 
         }
       }
-      write_cul(cul,file.path(Genotype_path,cultivar_filename))
+      write_cul(cul,file.path(genotype_path,cultivar_filename))
     }
   }
   
   # Run the model
   setwd(project_path)
-  write_dssbatch(x=experiment_file,trtno=as.integer(situation)) # Generate a DSSAT batch file with function arguments
+  
+  ## Build batch file description tibble
+  tmp <- t(dplyr::bind_rows(sapply(situation,FUN = strsplit, "_")))
+  experiment_files <- paste0(tmp[,1],".",crop_code,"X")
+  TRNO <- as.integer(tmp[,2])
+  batch <- data.frame(FILEX=experiment_files,TRTNO=TRNO,RP=1,SQ=0,OP=0,CO=0)
+  
+  write_dssbatch(x=batch) # Generate a DSSAT batch file with function arguments
 
   run_dssat(suppress_output=suppress_output) # Run DSSAT-CSM
 
@@ -145,15 +154,20 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       dplyr::select(-DATE) %>% dplyr::relocate(Date)
 
     # Add variables included in PlantGr2.OUT if Crop is Wheat 
+    flag_pgr2 <- FALSE
     if (model_options$Crop=="Wheat" & file.exists("PlantGr2.OUT")) {
       pgr2 <- read_output("PlantGr2.OUT") %>% dplyr::mutate(Date=DATE) %>% 
         dplyr::select(-DATE) %>% dplyr::relocate(Date)
       pgroTot <- dplyr::left_join(pgroTot, pgr2, by= intersect(names(pgroTot), names(pgr2)))
+      flag_pgr2 <- TRUE
     }
     
     for (situation in situation) {
-      
-      pgro <- dplyr::filter(pgroTot, TRNO==as.integer(situation))
+
+      experiment <- strsplit(situation,split="_")[[1]][1]
+      trno <- as.integer(strsplit(situation,split="_")[[1]][2])
+            
+      pgro <- dplyr::filter(pgroTot, TRNO==trno, EXPERIMENT==experiment)
       pgro <- pgro[!duplicated(pgro$Date),]  # DSSAT sometimes include replicated lines in the .out file ...
       results$sim_list[[situation]] <- pgro
       
@@ -210,7 +224,8 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
     attr(results$sim_list, "class")= "cropr_simulation"
     
     # Remove PlantGro.OUT file to be able to check if it is created for next model runs.
-    file.remove("PlantGro.OUT")
+    file.rename(from="PlantGro.OUT", to="PlantGro_saved.OUT")
+    if (flag_pgr2) file.rename(from="PlantGr2.OUT", to="PlantGr2_saved.OUT")
     
   } else {
     

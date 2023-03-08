@@ -21,23 +21,20 @@ if(!require("truncnorm")){
   library("truncnorm")
 }
 
-source("DSSAT_wrapper.R")
+source("R/DSSAT_wrapper.R")
 library(tidyr)
 
 ########## TO BE ADAPTED TO YOUR CASE ....
 
 model_options <- vector("list")
-model_options$DSSAT_path <- 'C:\\DSSAT47'
-model_options$DSSAT_exe <-  'DSCSM047.EXE'
+model_options$DSSAT_path <- 'C:\\DSSAT48'
+model_options$DSSAT_exe <-  'DSCSM048.EXE'
 model_options$Crop <- "Wheat"
-model_options$Genotype <- "Genotype" 
-model_options$ecotype_filename <- "WHCER047.ECO"
-model_options$cultivar_filename <- "WHCER047.CUL"
+model_options$ecotype_filename <- "WHCER048.ECO"
+model_options$cultivar_filename <- "WHCER048.CUL"
 
-# Adapt to Australian or French dataset case ...
-model_options$experiment_filename <-  'CSIR1066.WHX'
-model_options$ecotype <-  "AUWH01"
-model_options$cultivar <- "CSIR01"
+model_options$ecotype <-  "DFAULT"
+model_options$cultivar <- "ASAR01"
 
 
 param_names <- c("P1","P3")    # set the name of one or several model input parameters in a vector
@@ -45,7 +42,7 @@ param_lb<-c(100,100)       # set the lower bounds of these parameters in a vecto
 param_ub<-c(500,500)       # set the upper bounds of these parameters in a vector (no Inf or -Inf ...)
 var_name<-"GSTD"       # give the name of an output variable sensitive to this (or these) parameter(s)
 
-situation_name<- as.character (seq(1, 2, by=1)) # give the name of the situation to simulate 
+situation_name<- paste0("AQTB1101","_",as.character(seq(1, 2, by=1))) # give the name of the situations to simulate 
 
 ############ A simple test
 
@@ -92,7 +89,6 @@ library(CroptimizR)
 param_true_values <- c(P1=150)
 
 ## we choose a few situations and a variable
-situation_name<- as.character (seq(1, 2, by=1))
 var_name <- "LAID"
 
 ## we simulate a given variable using the true value of the parameter
@@ -145,3 +141,19 @@ sim_estim <- DSSAT_wrapper(param_values = res$final_values,
 plot(sim_true=sim_true$sim_list, sim_default=sim_default$sim_list, 
      sim_estim=sim_estim$sim_list, obs=obs_list)
 
+############ Test run on different experiments
+
+model_options <- vector("list")
+model_options$DSSAT_path <- 'C:\\DSSAT48'
+model_options$DSSAT_exe <-  'DSCSM048.EXE'
+model_options$Crop <- "Wheat"
+model_options$ecotype_filename <- "WHCER048.ECO"
+model_options$cultivar_filename <- "WHCER048.CUL"
+
+model_options$ecotype <-  "DFAULT"
+model_options$cultivar <- "ASAR01"
+
+situation_name<- c("AQTB1101_2", "AQTB1101_10", "AQTB1201_5", "AQTB1201_15") 
+
+sim <- DSSAT_wrapper(model_options = model_options, 
+                     situation=situation_name, var=var_name)
