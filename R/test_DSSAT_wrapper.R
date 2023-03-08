@@ -4,9 +4,21 @@
 # IT IS JUST A TEMPLATE : some information must be filled before running it (see below)
 # 
 
+if(!require("lubridate")){
+  install.packages("lubridate")
+  library("lubridate")
+}
+if(!require("wrapr")){
+  install.packages("wrapr")
+  library("wrapr")
+}
 if(!require("DSSAT")){
   install.packages("DSSAT")
   library("DSSAT")
+}
+if(!require("truncnorm")){
+  install.packages("truncnorm")
+  library("truncnorm")
 }
 
 source("DSSAT_wrapper.R")
