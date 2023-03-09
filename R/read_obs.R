@@ -1,6 +1,6 @@
 # Function for reading DSSAT formatted observation and transforming into CroptimizR formatted ones
 
-read_obs <- function(model_options, situation) {
+read_obs <- function(model_options, situation, read_end_season=FALSE) {
 #' @description This function read DSSAT observations files (both time series and end-of-season files),
 #' and return a corresponding observation list in CroptimizR format.
 #'
@@ -13,6 +13,9 @@ read_obs <- function(model_options, situation) {
 #'
 #' @param situation Vector of situation names (EXPERIMENT_NAME_TRNO) for which 
 #' observations must be returned.
+#'
+#' @param read_end_season Must the end-of-season "*.**A" file be read or not? 
+#' (TRUE to read it, FALSE otherwise)
 #'
 #' @importFrom stringr str_sub
 #' @importFrom dplyr full_join relocate mutate select
@@ -40,7 +43,7 @@ read_obs <- function(model_options, situation) {
   
   for (experiment in unique(situation_df$EXPERIMENT)) {
     
-    filtered_situation_df <- filter(situation_df,EXPERIMENT==experiment)
+    filtered_situation_df <- dplyr::filter(situation_df,EXPERIMENT==experiment)
     trno <- as.integer(filtered_situation_df$TRNO)
     
     file_name_a <- file.path(model_options$DSSAT_path,model_options$Crop,paste0(experiment,".",crop_code,"A"))
@@ -60,9 +63,9 @@ read_obs <- function(model_options, situation) {
     
     # Handle final data
     end_season_obs_df <- NULL
-    if (file.exists(file_name_a)) {
+    if (file.exists(file_name_a) & read_end_season) {
       end_season_obs_df <- read_filea(file_name_a, na_strings = NA)
-      end_season_obs_df <- filter(end_season_obs_df, TRNO %in% trno)
+      end_season_obs_df <- dplyr::filter(end_season_obs_df, TRNO %in% trno)
       # Set the Date of end-of-season obs to Mat Date or Harvest Date depending on which date is provided
       if ( "MDAT" %in% names(end_season_obs_df) ) {
         end_season_obs_df <- end_season_obs_df %>% dplyr::mutate(Date=MDAT) %>% 
@@ -77,7 +80,13 @@ read_obs <- function(model_options, situation) {
     }
     
     # Join in-season and final data in a single df
-    obs_df_tmp <- dplyr::full_join(in_season_obs_df, end_season_obs_df, by=c("TRNO", "Date"))
+    if (is.null(end_season_obs_df)) {
+      obs_df_tmp <- in_season_obs_df
+    } else if (is.null(in_season_obs_df)) {
+      obs_df_tmp <- end_season_obs_df
+    } else {
+      obs_df_tmp <- dplyr::full_join(in_season_obs_df, end_season_obs_df, by=c("TRNO", "Date"))
+    }
     
     # Add situation column and remove TRNO
     obs_df_tmp <- dplyr::mutate(obs_df_tmp, situation=paste0(experiment,"_",TRNO)) %>%
