@@ -4,6 +4,12 @@
 # IT IS JUST A TEMPLATE : some information must be filled before running it (see below)
 # 
 
+setwd("C:\\DSSAT48\\Tools\\CroptimizR")
+
+if(!require("dplyr")){
+  install.packages("dplyr")
+  library("dplyr")
+}
 if(!require("lubridate")){
   install.packages("lubridate")
   library("lubridate")
@@ -20,11 +26,17 @@ if(!require("truncnorm")){
   install.packages("truncnorm")
   library("truncnorm")
 }
+library(CroptimizR)
+library(CroPlotR)
 
-source("R/DSSAT_wrapper.R")
+
+source("DSSAT_wrapper.R")
+source("read_obs.R")
 library(tidyr)
 
-########## TO BE ADAPTED TO YOUR CASE ....
+
+
+############ A simple test
 
 model_options <- vector("list")
 model_options$DSSAT_path <- 'C:\\DSSAT48'
@@ -43,8 +55,6 @@ param_ub<-c(500,500)       # set the upper bounds of these parameters in a vecto
 var_name<-"GSTD"       # give the name of an output variable sensitive to this (or these) parameter(s)
 
 situation_name<- paste0("AQTB1101","_",as.character(seq(1, 2, by=1))) # give the name of the situations to simulate 
-
-############ A simple test
 
 param_values_min <- setNames(param_lb, param_names)
 param_values_max <- setNames(param_ub, param_names)
@@ -73,7 +83,16 @@ sim_max$sim_list
 
 ############ using test_wrapper function from CroptimizR
 
-library(CroptimizR)
+model_options <- vector("list")
+model_options$DSSAT_path <- 'C:\\DSSAT48'
+model_options$DSSAT_exe <-  'DSCSM048.EXE'
+model_options$Crop <- "Wheat"
+model_options$ecotype_filename <- "WHCER048.ECO"
+model_options$cultivar_filename <- "WHCER048.CUL"
+
+model_options$ecotype <-  "DFAULT"
+model_options$cultivar <- "ASAR01"
+
 
 test_wrapper(model_function = DSSAT_wrapper, model_options = model_options, 
              param_values = setNames(param_lb, param_names), 
@@ -82,8 +101,16 @@ test_wrapper(model_function = DSSAT_wrapper, model_options = model_options,
 
 ############ testing a simple optimization on a synthetic experiment 
 
-library(CroPlotR)
-library(CroptimizR)
+model_options <- vector("list")
+model_options$DSSAT_path <- 'C:\\DSSAT48'
+model_options$DSSAT_exe <-  'DSCSM048.EXE'
+model_options$Crop <- "Wheat"
+model_options$ecotype_filename <- "WHCER048.ECO"
+model_options$cultivar_filename <- "WHCER048.CUL"
+
+model_options$ecotype <-  "DFAULT"
+model_options$cultivar <- "ASAR01"
+
 
 situation_name<- c("AQTB1101_2", "AQTB1201_5") 
 
