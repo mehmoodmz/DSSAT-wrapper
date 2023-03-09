@@ -21,23 +21,20 @@ if(!require("truncnorm")){
   library("truncnorm")
 }
 
-source("DSSAT_wrapper.R")
+source("R/DSSAT_wrapper.R")
 library(tidyr)
 
 ########## TO BE ADAPTED TO YOUR CASE ....
 
 model_options <- vector("list")
-model_options$DSSAT_path <- 'C:\\DSSAT47'
-model_options$DSSAT_exe <-  'DSCSM047.EXE'
+model_options$DSSAT_path <- 'C:\\DSSAT48'
+model_options$DSSAT_exe <-  'DSCSM048.EXE'
 model_options$Crop <- "Wheat"
-model_options$Genotype <- "Genotype" 
-model_options$ecotype_filename <- "WHCER047.ECO"
-model_options$cultivar_filename <- "WHCER047.CUL"
+model_options$ecotype_filename <- "WHCER048.ECO"
+model_options$cultivar_filename <- "WHCER048.CUL"
 
-# Adapt to Australian or French dataset case ...
-model_options$experiment_filename <-  'CSIR1066.WHX'
-model_options$ecotype <-  "AUWH01"
-model_options$cultivar <- "CSIR01"
+model_options$ecotype <-  "DFAULT"
+model_options$cultivar <- "ASAR01"
 
 
 param_names <- c("P1","P3")    # set the name of one or several model input parameters in a vector
@@ -45,7 +42,7 @@ param_lb<-c(100,100)       # set the lower bounds of these parameters in a vecto
 param_ub<-c(500,500)       # set the upper bounds of these parameters in a vector (no Inf or -Inf ...)
 var_name<-"GSTD"       # give the name of an output variable sensitive to this (or these) parameter(s)
 
-situation_name<- as.character (seq(1, 2, by=1)) # give the name of the situation to simulate 
+situation_name<- paste0("AQTB1101","_",as.character(seq(1, 2, by=1))) # give the name of the situations to simulate 
 
 ############ A simple test
 
@@ -88,12 +85,13 @@ test_wrapper(model_function = DSSAT_wrapper, model_options = model_options,
 library(CroPlotR)
 library(CroptimizR)
 
+situation_name<- c("AQTB1101_2", "AQTB1201_5") 
+
 ## we set the true value of a given parameter
-param_true_values <- c(P1=150)
+param_true_values <- c(P1=350)
 
 ## we choose a few situations and a variable
-situation_name<- as.character (seq(1, 2, by=1))
-var_name <- "LAID"
+var_name <- c("CWAD", "HWAD")
 
 ## we simulate a given variable using the true value of the parameter
 sim_true <- DSSAT_wrapper(param_values = param_true_values, 
@@ -111,11 +109,12 @@ p_before <- plot(sim_true=sim_true$sim_list, sim_default=sim_default$sim_list)
 
 ## we define synthetic observations by from true simulated values by selecting values and adding noise
 noise_sd <- 0.2
-obs_df <- bind_rows(sim_true$sim_list) %>% 
-  dplyr::slice(seq(from=1, to=nrow(.), by=10)) %>%
+obs_df <- CroPlotR::bind_rows(sim_true$sim_list) %>% 
+  dplyr::slice(c(seq(from=1, to=nrow(.), by=20),nrow(.))) %>%
   dplyr::mutate(across(all_of(var_name), ~ .x + .x * truncnorm::rtruncnorm(length(.x), a=-3*noise_sd , b=3*noise_sd, sd=noise_sd)))
 obs_list <- split(obs_df, f = obs_df$situation, lex.order = TRUE)
 obs_list <- lapply(obs_list, function(x) { dplyr::select(x,-situation)}) # remove column situation
+obs_list <- lapply(obs_list, function(x) { x$HWAD[1:(nrow(x)-1)] <- NA; return(x)}) # only keep last date for Yield
 
 plot(sim_true=sim_true$sim_list, sim_default=sim_default$sim_list, obs=obs_list)
 
@@ -144,4 +143,125 @@ sim_estim <- DSSAT_wrapper(param_values = res$final_values,
 
 plot(sim_true=sim_true$sim_list, sim_default=sim_default$sim_list, 
      sim_estim=sim_estim$sim_list, obs=obs_list)
+
+############ Test run on different experiments
+
+model_options <- vector("list")
+model_options$DSSAT_path <- 'C:\\DSSAT48'
+model_options$DSSAT_exe <-  'DSCSM048.EXE'
+model_options$Crop <- "Wheat"
+model_options$ecotype_filename <- "WHCER048.ECO"
+model_options$cultivar_filename <- "WHCER048.CUL"
+
+model_options$ecotype <-  "DFAULT"
+model_options$cultivar <- "ASAR01"
+
+situation_name<- c("AQTB1101_2", "AQTB1101_10", "AQTB1201_5", "AQTB1201_15") 
+
+sim <- DSSAT_wrapper(model_options = model_options, 
+                     situation=situation_name, var=var_name)
+
+
+############ Test optimization on real data
+
+library(CroPlotR)
+library(CroptimizR)
+
+model_options <- vector("list")
+model_options$DSSAT_path <- 'C:\\DSSAT48'
+model_options$DSSAT_exe <-  'DSCSM048.EXE'
+model_options$Crop <- "Wheat"
+model_options$ecotype_filename <- "WHCER048.ECO"
+model_options$cultivar_filename <- "WHCER048.CUL"
+
+model_options$ecotype <-  "DFAULT"
+model_options$cultivar <- "ASAR01"
+
+
+## we select the situations on which performing the calibration 
+# situation_name<- c(paste0("AQTB1101","_",seq(1,10)),  
+#                    paste0("AQTB1201","_",seq(1,10))) 
+situation_name<- c("AQTB1101_1","AQTB1201_1","KARA1201_1") 
+
+## we read the associated observations
+obs_list <- read_obs(model_options, situation_name)
+### Let's print the names of the observed variables
+print(names(bind_rows(obs_list)))
+### Only keep RSTD and HWAD
+var_name <- c("RSTD", "HWAD")
+obs_list <- filter_obs(obs_list, var = var_name, include = TRUE)
+
+## we simulate the same variable but using the default value of the parameters
+sim_default <- DSSAT_wrapper(model_options = model_options, 
+                             situation=situation_name,
+                             var = var_name, sit_var_dates_mask = obs_list)
+
+## Plot default simulations wrt observation
+plot(sim_default$sim_list,obs=obs_list)
+plot(sim_default$sim_list,obs=obs_list, type="scatter")
+
+## We try to retrieve parameter and simulated true values from the observations 
+## starting from default value of the parameters
+param_info <- list(
+  lb = c(P1 = 100., G2=10.),
+  ub = c(P1 = 500., G2=80.)
+)
+
+optim_options <- list(maxeval = 1000000, xtol_rel=1e-2, 
+                      out_dir = file.path(getwd(),"2ndCalibration_2params"))
+res <- estim_param(
+  obs_list = obs_list,
+  model_function = DSSAT_wrapper,
+  model_options = model_options,
+  optim_options = optim_options,
+  param_info = param_info
+)
+
+## we compute simulations using the estimated values of the parameters and compare
+## with default, true values and observations.
+sim_estim <- DSSAT_wrapper(param_values = res$final_values, 
+                           model_options = model_options, 
+                           situation=situation_name,
+                           var = var_name, sit_var_dates_mask = obs_list)
+
+## Now let's check the results obtained on the situations used for calibration
+plot(sim_default=sim_default$sim_list, 
+     sim_estim=sim_estim$sim_list, obs=obs_list)
+plot(sim_default=sim_default$sim_list, 
+     sim_estim=sim_estim$sim_list, obs=obs_list,
+     type="scatter")
+stats <- summary(sim_default=sim_default$sim_list,
+                 sim_estim=sim_estim$sim_list,
+                 obs=obs_list, stats=c("rRMSE","EF","MAPE"))
+plot(stats)
+
+## Now let's check the results obtained on situations NOT used for calibration
+situation_name<- c(paste0("AQTB1101","_",seq(11,20)),  
+                   paste0("AQTB1201","_",seq(11,20))) 
+
+## we read the associated observations
+obs_list <- read_obs(model_options, situation_name)
+### Let's print the names of the observed variables
+print(names(bind_rows(obs_list)))
+### Only keep RSTD and HWAD
+var_name <- c("RSTD", "HWAD")
+obs_list <- filter_obs(obs_list, var = var_name, include = TRUE)
+
+## we simulate the same variable but using the default value of the parameters
+sim_default <- DSSAT_wrapper(model_options = model_options, 
+                             situation=situation_name,
+                             var = var_name, sit_var_dates_mask = obs_list)
+sim_estim <- DSSAT_wrapper(param_values = res$final_values, 
+                           model_options = model_options, 
+                           situation=situation_name,
+                           var = var_name, sit_var_dates_mask = obs_list)
+# plot(sim_default=sim_default$sim_list, 
+#      sim_estim=sim_estim$sim_list, obs=obs_list)
+plot(sim_default=sim_default$sim_list, 
+     sim_estim=sim_estim$sim_list, obs=obs_list,
+     type="scatter")
+stats <- summary(sim_default=sim_default$sim_list,
+                 sim_estim=sim_estim$sim_list,
+                 obs=obs_list, stats=c("rRMSE","EF","MAPE"))
+plot(stats)
 
