@@ -172,7 +172,10 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
     if (model_options$Crop=="Wheat" & file.exists("PlantGr2.OUT")) {
       pgr2 <- as.data.frame(read_output("PlantGr2.OUT")) %>% dplyr::mutate(Date=DATE) %>% 
         dplyr::select(-DATE) %>% dplyr::relocate(Date)
-      pgroTot <- dplyr::left_join(pgroTot, pgr2, by= intersect(names(pgroTot), names(pgr2)))
+      pgroTot <- dplyr::left_join(pgroTot, 
+                                  pgr2[,c("Date","EXPERIMENT",
+                                          setdiff(names(pgr2), names(pgroTot)))], 
+                                  by= c("Date","EXPERIMENT"))
       flag_pgr2 <- TRUE
     }
     
