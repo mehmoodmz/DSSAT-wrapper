@@ -188,6 +188,12 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
 
   run_dssat(suppress_output=suppress_output) # Run DSSAT-CSM
 
+  # Catch error in case of
+  if (file.exists("ERROR.OUT")) {
+    results$error <- TRUE
+    stop(paste("An error occured in DSSAT simulation. Please look at",file.path(project_path,"ERROR.OUT"),"file."))
+  }
+  
   # Read its outputs and store them in CroptimizR format
   if (file.exists("PlantGro.OUT")) {
     pgroTot <- as.data.frame(read_output("PlantGro.OUT")) %>% dplyr::mutate(Date=DATE) %>% 
