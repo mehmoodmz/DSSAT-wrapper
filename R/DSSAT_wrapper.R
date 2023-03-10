@@ -1,7 +1,8 @@
 #' @title DSSAT wrapper for CroptimizR
 #'
 #' @description This function runs DSSAT with given ecotype and/or cultivar parameter 
-#' values and returns its results as required by CroptimizR package.
+#' values and returns its results in a shape compatible with CroptimizR and CroPlotR R packages.
+#' (see https://sticsrpacks.github.io/CroptimizR/ and https://sticsrpacks.github.io/CroPlotR/).
 #'
 #' @param param_values (optional, NULL by default, in that case default values of 
 #' the parameters as read in DSSAT inputs files are used) a named vector that contains values
@@ -58,6 +59,7 @@
 #' @importFrom wrapr seqi
 #' @importFrom lubridate year
 #' @import tidyr
+#' @importFrom dplyr bind_rows mutate select relocate left_join filter slice bind_cols
 #' 
 DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL, 
                           sit_var_dates_mask = NULL, ...) {
@@ -173,9 +175,9 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       pgr2 <- as.data.frame(read_output("PlantGr2.OUT")) %>% dplyr::mutate(Date=DATE) %>% 
         dplyr::select(-DATE) %>% dplyr::relocate(Date)
       pgroTot <- dplyr::left_join(pgroTot, 
-                                  pgr2[,c("Date","EXPERIMENT",
+                                  pgr2[,c("Date","EXPERIMENT","TRNO",
                                           setdiff(names(pgr2), names(pgroTot)))], 
-                                  by= c("Date","EXPERIMENT"))
+                                  by= c("Date","EXPERIMENT","TRNO"))
       flag_pgr2 <- TRUE
     }
     
@@ -226,7 +228,7 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
         
       }
 
-      if (!is.null(sit_var_dates_mask)) {
+      if (!is.null(sit_var_dates_mask) & situation %in% names(sit_var_dates_mask)) {
         end_date <- sit_var_dates_mask[[situation]]$Date[nrow(sit_var_dates_mask[[situation]])]
         if (!(end_date %in% results$sim_list[[situation]]$Date)) {
           dates_to_add <- seq(from = results$sim_list[[situation]]$Date[nrow(results$sim_list[[situation]])], 
