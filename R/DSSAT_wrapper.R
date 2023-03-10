@@ -61,6 +61,30 @@
 #' @import tidyr
 #' @importFrom dplyr bind_rows mutate select relocate left_join filter slice bind_cols
 #' 
+
+# Installation and loading of the packages used by the DSSAT wrapper for CroptimizR
+
+if(!require("DSSAT")){          
+  install.packages("DSSAT")
+  library("DSSAT")
+}
+if(!require("tidyr")){        
+  install.packages("tidyr")
+  library("tidyr")
+}
+if(!require("dplyr")){        
+  install.packages("dplyr")
+  library("dplyr")
+}
+if(!require("wrapr")){        
+  install.packages("wrapr")
+  library("wrapr")
+}
+if(!require("lubridate")){    
+  install.packages("lubridate")
+  library("lubridate")
+}
+
 DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL, 
                           sit_var_dates_mask = NULL, ...) {
   
