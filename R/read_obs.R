@@ -1,5 +1,19 @@
 # Function for reading DSSAT formatted observation and transforming into CroptimizR formatted ones
 
+## Installation and loading of the packages used by the read_obs function
+if(!require("DSSAT")){
+  install.packages("DSSAT")
+  library("DSSAT")
+}
+if(!require("tidyr")){
+  install.packages("tidyr")
+  library("tidyr")
+}
+if(!require("dplyr")){
+  install.packages("dplyr")
+  library("dplyr")
+}
+
 read_obs <- function(model_options, situation, read_end_season=FALSE) {
 #' @description This function read DSSAT observations files (both time series and end-of-season files),
 #' and return a corresponding observation list in CroptimizR format.
@@ -15,10 +29,11 @@ read_obs <- function(model_options, situation, read_end_season=FALSE) {
 #' observations must be returned.
 #'
 #' @param read_end_season Must the end-of-season "*.**A" file be read or not? 
-#' (TRUE to read it, FALSE otherwise)
+#' (TRUE to read it, FALSE otherwise). Currently, the DSSAT_wrapper is not able 
+#' to provide values for variables included in the *.**A file, that is why the 
+#' default value of read_end_season is set to FALSE.
 #'
-#' @importFrom stringr str_sub
-#' @importFrom dplyr full_join relocate mutate select
+#' @importFrom dplyr full_join relocate mutate select filter
 #' @import tidyr 
 #' 
 #'
@@ -58,7 +73,7 @@ read_obs <- function(model_options, situation, read_end_season=FALSE) {
     if (file.exists(file_name_t)) {
       in_season_obs_df <- read_filet(file_name_t, na_strings = NA)
       in_season_obs_df <- in_season_obs_df %>% dplyr::mutate(Date=DATE) %>% 
-        dplyr::select(-DATE) %>% dplyr::relocate(Date) %>% filter(TRNO %in% trno)
+        dplyr::select(-DATE) %>% dplyr::relocate(Date) %>% dplyr::filter(TRNO %in% trno)
     }
     
     # Handle final data
