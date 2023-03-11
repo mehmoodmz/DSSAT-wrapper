@@ -41,7 +41,8 @@
 #'   - `sim_list`: a named list of tibbles, one tibble per situation, each tibble contains a 
 #'                 column Date storing the dates in Date or POSIXct format, plus one column 
 #'                 per simulated variable storing the simulated values for each date.
-#'                 The names of the elements of the list are the situation names (TRTNO)
+#'                 The names of the elements of the list are the situation names (EXPERIMENT_TRNO).
+#'                 See Details section for information about the variables included in sim_list.
 #'   - `error`: an error code indicating if at least one simulation ended 
 #'              with an error (TRUE) or if all simulations went OK (FALSE).
 #' 
@@ -52,8 +53,13 @@
 #' using the CroptimizR::estim_param function), and if maturity is reached before 
 #' the last date included in this mask for a given situation, then the simulated 
 #' results obtained at maturity are replicated up to this date.
-#' This guarantess the comparison of simulated and observed results regardless the 
+#' This guarantees the comparison of simulated and observed results regardless the 
 #' maturity date (which may evolve during the calibration process).
+#' 
+#' This wrapper generates additional variable wrt to what is read in DSSAT OUT files.
+#' The julian day, from 1st jan. of sowing year, of each Zadok stage is given in 
+#' Zadok1 to Zadok100 variables, as interpolated from GSTD variable. If the corresponding
+#' Zadok stage is not reached, the value is set to the last day of the last simulated year.
 #' 
 #' The very first version of this wrapper has been initiated by Jing Qi, Amir Souissi 
 #' and Samuel Buis for AgMIP Calibration project Phase III exercise.
