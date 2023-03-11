@@ -22,6 +22,8 @@
 #'   `cultivar`: name of the cultivar
 #'   `ecotype_filename`: name of the ecotype filename
 #'   `cultivar_filename`: name of the cultivar filename
+#'   `out_files`: names of the (time-series only) output files to read 
+#'   (by default, PlantGro.OUT, and PlantGR2.OUT for Wheat, are read)
 #'   `suppress_output`: a logical value indicating whether to suppress DSSAT-CSM output 
 #'   from being printed to the console (TRUE by default)
 #'
@@ -210,7 +212,18 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
                                   by= c("Date","EXPERIMENT","TRNO"))
       flag_pgr2 <- TRUE
     }
-    
+   
+    for (out_file in setdiff(model_options$out_files,c("PlantGro.OUT","PlantGr2.OUT"))) {
+      if (file.exists(out_file)) {
+        pgr_tmp <- as.data.frame(read_output(out_file)) %>% dplyr::mutate(Date=DATE) %>% 
+          dplyr::select(-DATE) %>% dplyr::relocate(Date)
+        pgroTot <- dplyr::left_join(pgroTot, 
+                                    pgr_tmp[,c("Date","EXPERIMENT","TRNO",
+                                               setdiff(names(pgr_tmp), names(pgroTot)))], 
+                                    by= c("Date","EXPERIMENT","TRNO"))
+      }
+    }
+     
     for (situation in situation) {
 
       experiment <- strsplit(situation,split="_")[[1]][1]
@@ -282,7 +295,11 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
     # Remove PlantGro.OUT file to be able to check if it is created for next model runs.
     file.rename(from="PlantGro.OUT", to="PlantGro_saved.OUT")
     if (flag_pgr2) file.rename(from="PlantGr2.OUT", to="PlantGr2_saved.OUT")
-    
+    for (out_file in setdiff(model_options$out_files,c("PlantGro.OUT","PlantGr2.OUT"))) {
+      if (file.exists(out_file)) {
+        file.rename(from=out_file, to=paste0(strsplit(out_file,"[.]")[[1]][1],"_saved.OUT"))
+      }
+    }  
   } else {
     
     results$error=TRUE
