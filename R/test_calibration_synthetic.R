@@ -33,17 +33,17 @@ model_options$DSSAT_exe <-  'DSCSM048.EXE'
 model_options$Crop <- "Wheat"
 model_options$ecotype_filename <- "WHCER048.ECO"
 model_options$cultivar_filename <- "WHCER048.CUL"
-model_options$ecotype <-  "DFAULT"
-model_options$cultivar <- "ASAR01"
+model_options$ecotype <-  "USWH01"
+model_options$cultivar <- "NEWTON"
 
-## Situations used in the calibration (format: EXEPERIMENT_TRNO)
-situation_name<- c("AQTB1101_2", "AQTB1201_5") 
+## Situations used in the calibration (format: EXPERIMENT_TRNO)
+situation_name<- c("KSAS8101_1") 
 
 ## We set the true value of a given parameter
 param_true_values <- c(P1=350)
 
 ## We select the variables on which the calibration will be done
-var_name <- c("CWAD", "HWAD")
+var_name <- c("CWAD", "LWAD")
 
 ## We simulate these variables using the true value of the parameter
 sim_true <- DSSAT_wrapper(param_values = param_true_values, 
@@ -69,7 +69,7 @@ obs_df <- CroPlotR::bind_rows(sim_true$sim_list) %>%
   dplyr::mutate(across(all_of(var_name), ~ .x + .x * truncnorm::rtruncnorm(length(.x), a=-3*noise_sd , b=3*noise_sd, sd=noise_sd)))
 obs_list <- split(obs_df, f = obs_df$situation, lex.order = TRUE)
 obs_list <- lapply(obs_list, function(x) { dplyr::select(x,-situation)}) # remove column situation
-obs_list <- lapply(obs_list, function(x) { x$HWAD[1:(nrow(x)-1)] <- NA; return(x)}) # only keep last date for Yield
+# obs_list <- lapply(obs_list, function(x) { x$HWAD[1:(nrow(x)-1)] <- NA; return(x)}) # only keep last date for Yield
 
 ## We try now to retrieve parameter and simulated true values from the observations 
 

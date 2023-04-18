@@ -23,7 +23,7 @@ model_options$Crop <- "Wheat"
 model_options$ecotype_filename <- "WHCER048.ECO"
 
 ## Defining the list of situations (EXPERIMENT_TRNO) for which observations must be read
-situation_name<- c("AQTB1101_2", "AQTB1101_10", "AQTB1201_5", "AQTB1201_15") 
+situation_name<- c("KSAS8101_1") 
 
 ## Reading the corresponding observation files and printing the returned observation list
 obs_list <- read_obs(model_options, situation_name)
@@ -32,7 +32,7 @@ print(obs_list)
 ## Checking that they are in CroptimizR/CroPlotR format
 cat(paste("Is the obs_list in CroptimizR/CroPlotR format?",CroptimizR:::is.obs(obs_list),"!"))
 
-## Let's imagine you want to use only observations of RSTD variable: 
+## Let's imagine you want to use only observations of LAID variable: 
 ## You can filter the observation list using the CroptimizR::filter_obs function
-filtered_obs_list <- CroptimizR::filter_obs(obs_list = obs_list,var = "RSTD",include = TRUE)
+filtered_obs_list <- CroptimizR::filter_obs(obs_list = obs_list,var = "LAID",include = TRUE)
 print(filtered_obs_list)

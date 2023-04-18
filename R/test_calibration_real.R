@@ -30,13 +30,11 @@ model_options$DSSAT_exe <-  'DSCSM048.EXE'
 model_options$Crop <- "Wheat"
 model_options$ecotype_filename <- "WHCER048.ECO"
 model_options$cultivar_filename <- "WHCER048.CUL"
-model_options$ecotype <-  "DFAULT"
-model_options$cultivar <- "ASAR01"
+model_options$ecotype <-  "USWH01"
+model_options$cultivar <- "NEWTON"
 
-## we select the situations on which performing the calibration 
-# situation_name<- c(paste0("AQTB1101","_",seq(1,10)),  
-#                    paste0("AQTB1201","_",seq(1,10))) 
-situation_name<- c("AQTB1101_1","AQTB1201_1","KARA1201_1") 
+## Situations used in the calibration (format: EXPERIMENT_TRNO)
+situation_name<- c("KSAS8101_1") 
 
 ## We read the associated observations
 obs_list <- read_obs(model_options, situation_name)
@@ -45,9 +43,11 @@ obs_list <- read_obs(model_options, situation_name)
 print(names(bind_rows(obs_list)))
 
 ## Only keep RSTD and HWAD variables in the observations for the calibration
-var_name <- c("RSTD", "HWAD")
-obs_list <- filter_obs(obs_list, var = var_name, include = TRUE)
-
+# var_name <- c("RSTD", "HWAD")
+# obs_list <- filter_obs(obs_list, var = var_name, include = TRUE)
+obs_list <- filter_obs(obs_list, var = "GWAD", include = FALSE)
+var_name <- setdiff(names(bind_rows(obs_list)),"Date")
+  
 ## we simulate the same variable but using the default value of the parameters
 ## we use here the argument sit_var_dates_mask so that if simulated maturity 
 ## happens before the last date of observations, the values of all the simulated 
@@ -55,7 +55,8 @@ obs_list <- filter_obs(obs_list, var = var_name, include = TRUE)
 ## to observations 
 sim_default <- DSSAT_wrapper(model_options = model_options, 
                              situation=situation_name,
-                             var = var_name, sit_var_dates_mask = obs_list)
+                             var = var_name,
+                             sit_var_dates_mask = obs_list)
 
 ## We try now to estimate several parameters 
 param_info <- list(
@@ -79,8 +80,9 @@ res <- estim_param(
 ## we compute simulations using the estimated values of the parameters 
 sim_estim <- DSSAT_wrapper(param_values = res$final_values, 
                            model_options = model_options, 
-                           situation=situation_name,
-                           var = var_name, sit_var_dates_mask = obs_list)
+                           situation=situation_name, 
+                           var = var_name,
+                           sit_var_dates_mask = obs_list)
 
 ## Now let's check the results obtained on the situations used for calibration
 ## Plots are stored in out_dir

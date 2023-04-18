@@ -28,8 +28,8 @@ model_options$Crop <- "Wheat"
 model_options$ecotype_filename <- "WHCER048.ECO"
 model_options$cultivar_filename <- "WHCER048.CUL"
 
-model_options$ecotype <-  "DFAULT"
-model_options$cultivar <- "ASAR01"
+model_options$ecotype <-  "USWH01"
+model_options$cultivar <- "NEWTON"
 
 param_names <- c("P1","P3")  # set the name of one or several model input parameters in a vector
 param_lb<-c(100,100)         # set the lower bounds of these parameters in a vector (no Inf or -Inf ...)
@@ -37,7 +37,7 @@ param_ub<-c(500,500)         # set the upper bounds of these parameters in a vec
 var_name<-"GSTD"             # give the name of an output variable sensitive to this (or these) parameter(s)
 
 # Set the names of one or several situations to simulate (EXPERIMENT_TRNO)
-situation_name<- c("AQTB1101_1", "AQTB1101_2", "AQTB1201_1", "AQTB1201_2") 
+situation_name<- c("KSAS8101_1") 
 
 # Runs the wrapper with lower bounds and then uppers bounds of the parameters.
 param_values_min <- setNames(param_lb, param_names)
@@ -80,13 +80,13 @@ model_options$Crop <- "Wheat"
 model_options$ecotype_filename <- "WHCER048.ECO"
 model_options$cultivar_filename <- "WHCER048.CUL"
 
-model_options$ecotype <-  "DFAULT"
-model_options$cultivar <- "ASAR01"
+model_options$ecotype <-  "USWH01"
+model_options$cultivar <- "NEWTON"
 
 param_values <- c(P1=200, P3=250)   # give values for at least two parameters that impact model results
 
 # Set the names of one or several situations to simulate (EXPERIMENT_TRNO)
-situation_name<- c("AQTB1101_1", "AQTB1201_1") 
+situation_name<- c("KSAS8101_1") 
 
 test_wrapper(model_function = DSSAT_wrapper, model_options = model_options, 
              param_values = param_values, 
