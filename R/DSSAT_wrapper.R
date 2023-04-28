@@ -157,6 +157,7 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       for (param in eco_paramNames) {   # modify their values in the eco data.frame
         eco[idx,param] <- param_values[param] 
       }      
+      attr(eco, "comments") <- NULL # to prevent a bug in v0.0.7 of DSSAT package
       write_eco(eco,file.path(genotype_path,ecotype_filename))  # write the ecotype DSSAT file from the modified eco data.frame
     }
   }
