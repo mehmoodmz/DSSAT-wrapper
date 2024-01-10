@@ -38,6 +38,13 @@ You will find comments at the beginning of each function and script file.
 
 You will find a comprehensive documentation on the methods and features available for the calibration and evaluation of all crop models in [CroptimizR](https://sticsrpacks.github.io/CroptimizR/) and [CroPlotR](https://sticsrpacks.github.io/CroPlotR/) websites.
 
+## Special features of the DSSAT wrapper
+
+* The names of the simulated situations are set to EXPERIMENT_TRNO, where EXPERIMENT is the experiment name, and TRNO the treatment number. These names are used in the results returned by the wrapper to associate simulated results to the corresponding situation, and are also useful to specify the list of situations to simulate, using the "situation" argument of the wrapper.
+* This wrapper generates additional variables wrt to what is read in DSSAT OUT files. The julian day, from 1st jan. of sowing year, of each Zadok stage is given in Zadok1 to Zadok100 variables, as interpolated from GSTD variable. If the corresponding Zadok stage is not reached, the value is set to the last day of the last simulated year. These variables are useful to estimate parameters from observed julian days of phenological stages.
+
+More details about the wrapper inputs and outputs are provided as comments at the beginning of the R/DSSAT_wrapper.R file.
+
 ## Getting help
 
 If you have any question or suggestion or if you want to report a bug, please do it via the GitHub [issues](https://github.com/sbuis/DSSAT-wrapper/issues).
