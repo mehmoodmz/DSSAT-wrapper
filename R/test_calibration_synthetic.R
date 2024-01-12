@@ -51,15 +51,6 @@ sim_true <- DSSAT_wrapper(param_values = param_true_values,
                           situation=situation_name,
                           var = var_name)
 
-## we simulate the same variable but using the default value of the parameters
-## we use here the argument sit_var_dates_mask so that if simulated maturity 
-## happens before the last date of observations, the values of all the simulated 
-## variables will be kept constant up to that date, so that they can be compared
-## to observations 
-sim_default <- DSSAT_wrapper(model_options = model_options, 
-                             situation=situation_name,
-                             var = var_name, sit_var_dates_mask = obs_list)
-
 ## We define synthetic observations from true simulated values by selecting 
 ## some dates and adding truncated Gaussian noise of standard deviation 
 ## noise_sd*100 percent of the values.
@@ -70,6 +61,16 @@ obs_df <- CroPlotR::bind_rows(sim_true$sim_list) %>%
 obs_list <- split(obs_df, f = obs_df$situation, lex.order = TRUE)
 obs_list <- lapply(obs_list, function(x) { dplyr::select(x,-situation)}) # remove column situation
 # obs_list <- lapply(obs_list, function(x) { x$HWAD[1:(nrow(x)-1)] <- NA; return(x)}) # only keep last date for Yield
+
+
+## we simulate the same variable but using the default value of the parameters
+## we use here the argument sit_var_dates_mask so that if simulated maturity 
+## happens before the last date of observations, the values of all the simulated 
+## variables will be kept constant up to that date, so that they can be compared
+## to observations 
+sim_default <- DSSAT_wrapper(model_options = model_options, 
+                             situation=situation_name,
+                             var = var_name, sit_var_dates_mask = obs_list)
 
 ## We try now to retrieve parameter and simulated true values from the observations 
 
