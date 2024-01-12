@@ -155,7 +155,7 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       eco_paramNames <- intersect(param_names, names(eco))
       idx <- which(eco$`ECO#`==ecotype)
       for (param in eco_paramNames) {   # modify their values in the eco data.frame
-        eco[idx,param] <- param_values[param] 
+        eco[[param]][idx] <- param_values[param] 
       }      
       attr(eco, "comments") <- NULL # to prevent a bug in v0.0.7 of DSSAT package
       write_eco(eco,file.path(genotype_path,ecotype_filename))  # write the ecotype DSSAT file from the modified eco data.frame
@@ -175,9 +175,9 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       idx <- which(cul$`VAR#`==cultivar)
       for (param in cul_paramNames) {
         if (is.character(cul[[param]])) {
-          cul[idx,param] <- as.character(round(param_values[[param]],digits = 2)) 
+          cul[[param]][idx]  <- as.character(round(param_values[[param]],digits = 2)) 
         } else {
-          cul[idx,param] <- param_values[param] 
+          cul[[param]][idx]  <- param_values[param] 
         }
       }
       write_cul(cul,file.path(genotype_path,cultivar_filename))
