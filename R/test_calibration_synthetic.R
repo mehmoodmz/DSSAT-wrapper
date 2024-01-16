@@ -1,7 +1,23 @@
 ################################################################################
 #
-# This script runs a simple parameter estimation on data generated from simulations
-# 
+# This script runs a simple parameter estimation (1 parameter estimated) on data 
+# generated from simulations (for 2 variables).
+#  
+# WARNING: model_options content may have to be adapted in the script depending on the DSSAT version you use.
+#
+# The idea here is to:
+#  i) set a "true" value for a given parameter, that is different from the "default" 
+#  value defined in the DSSAT input files, 
+#  ii) simulate some DSSAT output variables, sensitive to the selected parameter,
+#  using this true value of the parameter,
+#  iii) define "synthetic" observations by selecting some simulated 
+#  values of the considered variables and adding random noise to them,
+#  iv) estimate the value of the considered parameter using these "synthetic" 
+#  observations,
+#  v) compare the simulations obtained using the "true" value, the "default" value,
+#  and the "estimated" value of the considered parameter. The simulations obtained 
+#  with the "estimated" value of the parameter should be closer to those obtained
+#  with the "true" value, than those obtained with the "default" value.
 #
 
 ## Installing/Loading the necessary packages and functions
@@ -39,19 +55,41 @@ model_options$cultivar <- "NEWTON"
 ## Situations used in the calibration (format: EXPERIMENT_TRNO)
 situation_name<- c("KSAS8101_1") 
 
-## We set the true value of a given parameter
-param_true_values <- c(P1=350)
+## Define the "true" value of a given selected parameter of the eco file ("P1" in this case)
+## For that, we read the values of the considered parameter for all ecotypes in the 
+## eco file, and compute a value within the min and max values over the ecotypes,
+## that is significantly different from the value set for the selected ecotype 
+## (in this example, +/- 60% of the difference between the parameter value and the min or max value 
+## over the ecotypes) 
+if (file.exists(file.path(model_options$DSSAT_path, model_options$Crop,
+                          model_options$ecotype_filename))) {
+  eco_values <- DSSAT::read_eco(file.path(model_options$DSSAT_path, model_options$Crop,
+                                          model_options$ecotype_filename))
+} else {
+  eco_values <- DSSAT::read_eco(file.path(model_options$DSSAT_path, "Genotype",
+                                          model_options$ecotype_filename))
+}
+default_value <- as.numeric(eco_values[["P1"]][which(eco_values$`ECO#`==model_options$ecotype)])
+min_value <- min(as.numeric(eco_values[["P1"]]))
+max_value <- max(as.numeric(eco_values[["P1"]]))
+if (min_value==max_value) {
+  min_value <- default_value - 0.5*default_value
+  max_value <- default_value + 0.5*default_value
+}
+offset <- c(- 0.6*(default_value-min_value), 0.6*(max_value-default_value))
+true_value <- setNames(default_value + offset[which.max(abs(offset))], 
+                       nm="P1")
 
 ## We select the variables on which the calibration will be done
 var_name <- c("CWAD", "LWAD")
 
-## We simulate these variables using the true value of the parameter
-sim_true <- DSSAT_wrapper(param_values = param_true_values, 
+## We simulate these variables using the "true" value of the parameter
+sim_true <- DSSAT_wrapper(param_values = true_value, 
                           model_options = model_options, 
                           situation=situation_name,
                           var = var_name)
 
-## We define synthetic observations from true simulated values by selecting 
+## We define "synthetic" observations from "true" simulated values by selecting 
 ## some dates and adding truncated Gaussian noise of standard deviation 
 ## noise_sd*100 percent of the values.
 noise_sd <- 0.2
@@ -76,8 +114,8 @@ sim_default <- DSSAT_wrapper(model_options = model_options,
 
 ## Let's define the information on the parameter to estimate (lower and upper bound)
 param_info <- list(
-  lb = c(P1 = 100.),
-  ub = c(P1 = 500.)
+  lb = c(P1 = min_value),
+  ub = c(P1 = max_value)
 )
 
 ## Let's define the options for the minimization 
@@ -115,3 +153,9 @@ stats <- summary(sim_default=sim_default$sim_list,
                  obs=obs_list, stats=c("rRMSE","EF","MAPE"))
 p3 <- plot(stats)
 print(p3)
+
+# print default value, true value and estimated value of the parameter
+print(paste("Default value of the parameter:",default_value))
+print(paste("True value of the parameter:",true_value))
+print(paste("Estimated value of the parameter:",res$final_values))
+

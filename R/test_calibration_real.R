@@ -1,7 +1,10 @@
 ################################################################################
 #
-# This script runs a simple parameter estimation on real data provided with DSSAT
+# This script runs a simple parameter estimation on real data provided with DSSAT.
+# 2 parameters are estimated from several observed variables.
 # 
+# WARNING: model_options content may have to be adapted in the script depending on the DSSAT version you use.
+#
 #
 
 ## Installing/Loading the necessary packages and functions

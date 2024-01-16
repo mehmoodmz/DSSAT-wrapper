@@ -1,5 +1,7 @@
 ################################################################################
 # This script tests the DSSAT wrapper 
+# 
+# WARNING: model_options content may have to be adapted in the script depending on the DSSAT version you use.
 #
 
 ## Installing/Loading the necessary packages and functions
