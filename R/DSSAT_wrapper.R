@@ -97,25 +97,27 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
                           sit_var_dates_mask = NULL, ...) {
   
   on.exit({
-    
-    # set the parameters file to their original values
-    if (flag_eco_param) {
-      res <- file.rename(from=file.path(genotype_path,paste0(ecotype_filename,"_tmp")),to=file.path(genotype_path,ecotype_filename))
-      if (!res) {
-        stop(paste("Unable to rename ",file.path(genotype_path,paste0(ecotype_filename,"_tmp")),"in ",file.path(genotype_path,ecotype_filename),
-                   ".\n This may alter the following results. Please allow write permissions on",file.path(genotype_path,ecotype_filename)))
-      }
-    }
-    if (flag_cul_param) {
-      res <- file.rename(from=file.path(genotype_path,paste0(cultivar_filename,"_tmp")),to=file.path(genotype_path,cultivar_filename))
-      if (!res) {
-        stop(paste("Unable to rename ",file.path(genotype_path,paste0(cultivar_filename,"_tmp")),"in ",file.path(genotype_path,cultivar_filename),
-                   ".\n This may alter the following results. Please allow write permissions on",file.path(genotype_path,cultivar_filename)))
-      }
-    }
+
     # come back to initial working directory
     setwd(ini_wd)
     
+    # set the parameters file to their original values
+    if (flag_eco_param) {
+      res <- file.rename(from=file.path(ecotype_path,paste0(ecotype_filename,"_tmp")),to=file.path(ecotype_path,ecotype_filename))
+      if (!res) {
+        results$error <- TRUE
+        warning(paste("Unable to rename ",file.path(ecotype_path,paste0(ecotype_filename,"_tmp")),"in ",file.path(ecotype_path,ecotype_filename),
+                   ".\n This may alter the following results. Please allow write permissions on",file.path(ecotype_path,ecotype_filename)))
+      }
+    }
+    if (flag_cul_param) {
+      res <- file.rename(from=file.path(cultivar_path,paste0(cultivar_filename,"_tmp")),to=file.path(cultivar_path,cultivar_filename))
+      if (!res) {
+        results$error <- TRUE
+        warning(paste("Unable to rename ",file.path(cultivar_path,paste0(cultivar_filename,"_tmp")),"in ",file.path(cultivar_path,cultivar_filename),
+                   ".\n This may alter the following results. Please allow write permissions on",file.path(cultivar_path,cultivar_filename)))
+      }
+    }
     return(results)
   })
 
@@ -130,7 +132,19 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
   project_path <- file.path(model_options$DSSAT_path,model_options$Crop)
   genotype_path <- file.path(model_options$DSSAT_path,"Genotype")
   ecotype_filename <- model_options$ecotype_filename
+  # By default, DSSAT use ecotype and cultivar files that are in the project folder, 
+  # If not there, use these in the Genotype folder
+  if (file.exists(file.path(project_path, ecotype_filename))) {
+    ecotype_path <- project_path
+  } else {
+    ecotype_path <- genotype_path
+  }
   cultivar_filename <- model_options$cultivar_filename
+  if (file.exists(file.path(project_path, cultivar_filename))) {
+    cultivar_path <- project_path
+  } else {
+    cultivar_path <- genotype_path
+  }
   ecotype <- model_options$ecotype
   cultivar <- model_options$cultivar
   if (is.null(model_options$suppress_output)) {
@@ -143,36 +157,66 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
   ## file once at first run and storing in environment
   crop_code <- substr(model_options$ecotype_filename,1,2)
 
+  # Argument checks
+  if (!is.null(param_values)) {
+    if (is.null(names(param_values))) {
+      results$error <- TRUE
+      warning("Argument param_values must be a NAMED vector. The names must be the names of DSSAT parameters.")
+    }
+  }
+  
+  # check prams are listed in eco and cul
+  # check eco and cul are in the files
+  
+  
   # Force ecotype parameters if provided in param_values
   if (!is.null(param_values)) {
-    eco <- read_eco(file.path(genotype_path,ecotype_filename))	  # read ecotype DSSAT file => put results in eco data.frame
-    if (any (param_names %in% names(eco))) {   # if some parameters in param_values are ecotype parameters
-      res <- file.copy(from=file.path(genotype_path,ecotype_filename),to=file.path(genotype_path,paste0(ecotype_filename,"_tmp")),overwrite = TRUE)
+    eco <- read_eco(file.path(ecotype_path,ecotype_filename))	  # read ecotype DSSAT file => put results in eco data.frame
+    eco_params <- names(eco)
+    if (any (param_names %in% eco_params)) {   # if some parameters in param_values are ecotype parameters
+      res <- file.copy(from=file.path(ecotype_path,ecotype_filename),
+                       to=file.path(ecotype_path,paste0(ecotype_filename,"_tmp")),
+                       overwrite = TRUE)
       if (!res) {
-        stop(paste("Unable to copy ",file.path(genotype_path,ecotype_filename)))
+        results$error <- TRUE
+        warning(paste("Unable to copy ",file.path(ecotype_path,ecotype_filename)))
       }
       flag_eco_param = TRUE
-      eco_paramNames <- intersect(param_names, names(eco))
+      eco_paramNames <- intersect(param_names, eco_params)
       idx <- which(eco$`ECO#`==ecotype)
+      if (length(idx)==0) {
+        results$error <- TRUE
+        warning(paste("Ecotype",ecotype,
+                   "is not part of the list of ecotypes described in ecotype file",
+                   file.path(ecotype_path,ecotype_filename)))
+      }
       for (param in eco_paramNames) {   # modify their values in the eco data.frame
         eco[[param]][idx] <- param_values[param] 
       }      
       attr(eco, "comments") <- NULL # to prevent a bug in v0.0.7 of DSSAT package
-      write_eco(eco,file.path(genotype_path,ecotype_filename))  # write the ecotype DSSAT file from the modified eco data.frame
+      write_eco(eco,file.path(ecotype_path,ecotype_filename))  # write the ecotype DSSAT file from the modified eco data.frame
     }
   }
   
   # Force cultivar parameters if provided in param_values, same as for ecotype parameters but for cultivar ones
   if (!is.null(param_values)) {
-    cul <- read_cul(file.path(genotype_path,cultivar_filename)) 
-    if (any (param_names %in% names(cul))) {
-      res <- file.copy(from=file.path(genotype_path,cultivar_filename),to=file.path(genotype_path,paste0(cultivar_filename,"_tmp")),overwrite = TRUE)
+    cul <- read_cul(file.path(cultivar_path,cultivar_filename)) 
+    cul_params <- names(cul)
+    if (any (param_names %in% cul_params)) {
+      res <- file.copy(from=file.path(cultivar_path,cultivar_filename),to=file.path(cultivar_path,paste0(cultivar_filename,"_tmp")),overwrite = TRUE)
       if (!res) {
-        stop(paste("Unable to copy ",file.path(genotype_path,cultivar_filename)))
+        results$error <- TRUE
+        warning(paste("Unable to copy ",file.path(cultivar_path,cultivar_filename)))
       }
       flag_cul_param = TRUE
-      cul_paramNames <- intersect(param_names, names(cul))
-      idx <- which(cul$`VAR#`==cultivar)
+      cul_paramNames <- intersect(param_names, cul_params)
+      idx <- which(cul$`VAR-NAME`==cultivar)
+      if (length(idx)==0) {
+        results$error <- TRUE
+        warning(paste("Cultivar",cultivar,
+                   "is not part of the list of cultivars described in cultivar file",
+                   file.path(cultivar_path,cultivar_filename)))
+      }
       for (param in cul_paramNames) {
         if (is.character(cul[[param]])) {
           cul[[param]][idx]  <- as.character(round(param_values[[param]],digits = 2)) 
@@ -180,7 +224,21 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
           cul[[param]][idx]  <- param_values[param] 
         }
       }
-      write_cul(cul,file.path(genotype_path,cultivar_filename))
+      write_cul(cul,file.path(cultivar_path,cultivar_filename))
+    }
+  }
+  
+  # Check all params where taken into account
+  if (!is.null(param_values)) {
+    if (length(setdiff(names(param_values), c(eco_params, cul_params)))>0) {
+      results$error <- TRUE
+      warning(paste("Parameter(s)",
+                 paste(setdiff(names(param_values), c(eco_params, cul_params)), 
+                       collapse = ","),
+                 "in argument param_values is(are) not part of the ecotype or cultivar files",
+                 file.path(ecotype_path,ecotype_filename),"and",
+                 file.path(cultivar_path,cultivar_filename)),
+           "\n Please check their spelling.")
     }
   }
   
@@ -197,21 +255,23 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
 
   run_dssat(suppress_output=suppress_output) # Run DSSAT-CSM
 
+  setwd(ini_wd)
+  
   # Catch error in case of
-  if (file.exists("ERROR.OUT")) {
+  if (file.exists(file.path(project_path,"ERROR.OUT"))) {
     results$error <- TRUE
-    stop(paste("An error occured in DSSAT simulation. Please look at",file.path(project_path,"ERROR.OUT"),"file."))
+    warning(paste("An error occured in DSSAT simulation. Please look at",file.path(project_path,"ERROR.OUT"),"file."))
   }
   
   # Read its outputs and store them in CroptimizR format
-  if (file.exists("PlantGro.OUT")) {
-    pgroTot <- as.data.frame(read_output("PlantGro.OUT")) %>% dplyr::mutate(Date=DATE) %>% 
+  if (file.exists(file.path(project_path,"PlantGro.OUT"))) {
+    pgroTot <- as.data.frame(read_output(file.path(project_path,"PlantGro.OUT"))) %>% dplyr::mutate(Date=DATE) %>% 
       dplyr::select(-DATE) %>% dplyr::relocate(Date)
 
     # Add variables included in PlantGr2.OUT if Crop is Wheat 
     flag_pgr2 <- FALSE
-    if (model_options$Crop=="Wheat" & file.exists("PlantGr2.OUT")) {
-      pgr2 <- as.data.frame(read_output("PlantGr2.OUT")) %>% dplyr::mutate(Date=DATE) %>% 
+    if (model_options$Crop=="Wheat" & file.exists(file.path(project_path,"PlantGr2.OUT"))) {
+      pgr2 <- as.data.frame(read_output(file.path(project_path,"PlantGr2.OUT"))) %>% dplyr::mutate(Date=DATE) %>% 
         dplyr::select(-DATE) %>% dplyr::relocate(Date)
       pgroTot <- dplyr::left_join(pgroTot, 
                                   pgr2[,c("Date","EXPERIMENT","TRNO",
@@ -221,8 +281,8 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
     }
    
     for (out_file in setdiff(model_options$out_files,c("PlantGro.OUT","PlantGr2.OUT"))) {
-      if (file.exists(out_file)) {
-        pgr_tmp <- as.data.frame(read_output(out_file)) %>% dplyr::mutate(Date=DATE) %>% 
+      if (file.exists(file.path(project_path,out_file))) {
+        pgr_tmp <- as.data.frame(read_output(file.path(project_path,out_file))) %>% dplyr::mutate(Date=DATE) %>% 
           dplyr::select(-DATE) %>% dplyr::relocate(Date)
         pgroTot <- dplyr::left_join(pgroTot, 
                                     pgr_tmp[,c("Date","EXPERIMENT","TRNO",
@@ -231,14 +291,26 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       }
     }
      
-    for (situation in situation) {
+    if (nrow(pgroTot)==0) {
+      results$error <- TRUE
+      warning(paste("Error reading DSSAT output files. No results found."))
+    }
+    
+    for (sit in situation) {
 
-      experiment <- strsplit(situation,split="_")[[1]][1]
-      trno <- as.integer(strsplit(situation,split="_")[[1]][2])
+      experiment <- strsplit(sit,split="_")[[1]][1]
+      trno <- as.integer(strsplit(sit,split="_")[[1]][2])
             
       pgro <- dplyr::filter(pgroTot, TRNO==trno, EXPERIMENT==experiment)
+      if (nrow(pgro)==0) {
+        results$error <- TRUE
+        warning(paste("TRNO",trno,"and/or EXPERIMENT",experiment,
+                   "is/are not part of the DSSAT output files.",
+                   "\n Please check the situation names provided to the DSSAT wrapper (should be EXPERIMENT_NAME_TRNO)."))
+      }
+      
       pgro <- pgro[!duplicated(pgro$Date),]  # DSSAT sometimes include replicated lines in the .out file ...
-      results$sim_list[[situation]] <- pgro
+      results$sim_list[[sit]] <- pgro
       
       if ( is.null(var) | any(grepl("Zadok",var)) ) {
         
@@ -273,26 +345,31 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
         
         df=as.data.frame(as.list(setNames(as.numeric(zadok_df$julDay),paste0("Zadok",zadok_df$Zadok))))
         
-        results$sim_list[[situation]] <- 
-          dplyr::bind_cols(results$sim_list[[situation]],df)
+        results$sim_list[[sit]] <- 
+          dplyr::bind_cols(results$sim_list[[sit]],df)
         
       }
 
-      if (!is.null(sit_var_dates_mask) & situation %in% names(sit_var_dates_mask)) {
-        end_date <- sit_var_dates_mask[[situation]]$Date[nrow(sit_var_dates_mask[[situation]])]
-        if (!(end_date %in% results$sim_list[[situation]]$Date)) {
-          dates_to_add <- seq(from = results$sim_list[[situation]]$Date[nrow(results$sim_list[[situation]])], 
+      if (!is.null(sit_var_dates_mask) & sit %in% names(sit_var_dates_mask)) {
+        end_date <- sit_var_dates_mask[[sit]]$Date[nrow(sit_var_dates_mask[[sit]])]
+        if (!(end_date %in% results$sim_list[[sit]]$Date)) {
+          dates_to_add <- seq(from = results$sim_list[[sit]]$Date[nrow(results$sim_list[[sit]])], 
                               to=end_date, by = "days")[-1]
-          extension <- results$sim_list[[situation]] %>% 
-            dplyr::slice(rep(nrow(results$sim_list[[situation]]),each=length(dates_to_add)))
+          extension <- results$sim_list[[sit]] %>% 
+            dplyr::slice(rep(nrow(results$sim_list[[sit]]),each=length(dates_to_add)))
           extension$Date <- dates_to_add
-          results$sim_list[[situation]] <- bind_rows(results$sim_list[[situation]], extension)
+          results$sim_list[[sit]] <- bind_rows(results$sim_list[[sit]], extension)
         }
       }
 
       # Select variables for which results are required      
       if (!is.null(var)) {
-        results$sim_list[[situation]] <- results$sim_list[[situation]] %>% dplyr::select(c("Date",all_of(var)))
+        results$sim_list[[sit]] <- results$sim_list[[sit]] %>% dplyr::select(c("Date",all_of(var)))
+        if (nrow(results$sim_list[[sit]])==0) {
+          results$error <- TRUE
+          warning(paste("No results found for variable(s)",var,
+                     "\n Please check the spelling of the variables listed in the var argument of the DSSAT wrapper."))
+        }
       }
       
     }
@@ -300,16 +377,17 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
     attr(results$sim_list, "class")= "cropr_simulation"
     
     # Remove PlantGro.OUT file to be able to check if it is created for next model runs.
-    file.rename(from="PlantGro.OUT", to="PlantGro_saved.OUT")
-    if (flag_pgr2) file.rename(from="PlantGr2.OUT", to="PlantGr2_saved.OUT")
+    file.rename(from=file.path(project_path,"PlantGro.OUT"), to=file.path(project_path,"PlantGro_saved.OUT"))
+    if (flag_pgr2) file.rename(from=file.path(project_path,"PlantGr2.OUT"), to=file.path(project_path,"PlantGr2_saved.OUT"))
     for (out_file in setdiff(model_options$out_files,c("PlantGro.OUT","PlantGr2.OUT"))) {
       if (file.exists(out_file)) {
-        file.rename(from=out_file, to=paste0(strsplit(out_file,"[.]")[[1]][1],"_saved.OUT"))
+        file.rename(from=file.path(project_path,out_file), to=file.path(project_path,paste0(strsplit(out_file,"[.]")[[1]][1],"_saved.OUT")))
       }
     }  
+    
   } else {
     
-    results$error=TRUE
+    results$error <- TRUE
     warning("DSSAT output file PlantGro.OUT has not been generated.")
     
   }
