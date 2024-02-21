@@ -34,7 +34,7 @@
 #' @param sit_var_dates_mask (optional) A named list
 #' containing a mask for variables and dates for which simulated values
 #' should be returned. Typically a list containing the observations to which
-#' simulations should be compared. The wrapper use this mask to provide simulated values 
+#' simulations should be compared. This wrapper use this mask to provide simulated values 
 #' after maturity date if required (see details).
 #'
 #' @return A list containing simulated values. It include 2 elements:
@@ -49,12 +49,12 @@
 #' @details This wrapper run the DSSAT model for an ensemble of situations (EXPERIMENT X Treatment number)
 #' and return associated results in cropr format.
 #'
-#' If argument sit_var_dates_mask is provided (which is the case during parameter estimation
+#' If argument sit_var_dates_mask is provided and different from NULL (which is the case during parameter estimation
 #' using the CroptimizR::estim_param function), and if maturity is reached before 
 #' the last date included in this mask for a given situation, then the simulated 
 #' results obtained at maturity are replicated up to this date.
 #' This guarantees the comparison of simulated and observed results regardless the 
-#' maturity date (which may evolve during the calibration process).
+#' simulated maturity date (which may evolve during the calibration process).
 #' 
 #' This wrapper generates additional variable wrt to what is read in DSSAT OUT files.
 #' The julian day, from 1st jan. of sowing year, of each Zadok stage is given in 
@@ -62,7 +62,8 @@
 #' Zadok stage is not reached, the value is set to the last day of the last simulated year.
 #' 
 #' The very first version of this wrapper has been initiated by Jing Qi, Amir Souissi 
-#' and Samuel Buis for AgMIP Calibration project Phase III exercise.
+#' and Samuel Buis for AgMIP Calibration project Phase III exercise. It has been then 
+#' improved by Samuel Buis and Vakhtang Shelia.
 #' 
 #' @importFrom wrapr seqi
 #' @importFrom lubridate year
@@ -248,6 +249,10 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
   ## Build batch file description tibble
   tmp <- t(dplyr::bind_rows(sapply(situation,FUN = strsplit, "_")))
   experiment_files <- paste0(tmp[,1],".",crop_code,"X")
+  if (ncol(tmp)==1) {
+    stop(paste0("situation names must be defined as EXPERIMENT_NAME_TRNO (e.g. ",
+                tmp[1,1],"_1), please check the content of the argument \"situation\"."))
+  }
   TRNO <- as.integer(tmp[,2])
   batch <- data.frame(FILEX=experiment_files,TRTNO=TRNO,RP=1,SQ=0,OP=0,CO=0)
   
