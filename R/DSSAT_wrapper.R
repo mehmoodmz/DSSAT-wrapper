@@ -284,7 +284,26 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
                                   by= c("Date","EXPERIMENT","TRNO"))
       flag_pgr2 <- TRUE
     }
-   
+
+    # Add variables included in Evaluate.OUT
+    if (file.exists(file.path(project_path,"Evaluate.OUT"))) {
+      eval_df <- as.data.frame(read_output(file.path(project_path,"Evaluate.OUT"))) %>% dplyr::mutate(EXPERIMENT=EXCODE) %>%
+        dplyr::select(-EXCODE)
+      # in evaluate.OUT file the experiment code include the crop code at the end :-/
+      eval_df$EXPERIMENT <- sapply(eval_df$EXPERIMENT,function(x) substr(x,1,nchar(x)-2))
+      # Select only simulated variables
+      id_sim_var <- grep(pattern = "S$",names(eval_df))
+      sim_var_names <- names(eval_df)[id_sim_var]
+      eval_df <- select(eval_df, c("EXPERIMENT","TRNO",sim_var_names))
+      # remove end char S to var names
+      names(eval_df)[3:ncol(eval_df)] <- sapply(sim_var_names,function(x) substr(x,1,nchar(x)-1))
+
+      pgroTot <- dplyr::left_join(pgroTot,
+                                  eval_df[,c("EXPERIMENT","TRNO",
+                                          setdiff(names(eval_df), names(pgroTot)))],
+                                  by= c("EXPERIMENT","TRNO"))
+    }
+    
     for (out_file in setdiff(model_options$out_files,c("PlantGro.OUT","PlantGr2.OUT"))) {
       if (file.exists(file.path(project_path,out_file))) {
         pgr_tmp <- as.data.frame(read_output(file.path(project_path,out_file))) %>% dplyr::mutate(Date=DATE) %>% 
