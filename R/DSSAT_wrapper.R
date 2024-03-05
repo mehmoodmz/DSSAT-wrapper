@@ -11,7 +11,7 @@
 #' be performed using the parameters values defined in the DSSAT input files referenced
 #' in model_options argument.
 #'
-#' @param situation Vector of situation names (EXPERIMENT_NAME_TRNO) for which results
+#' @param situation Vector of situation names (ExperimentName_TRNO) for which results
 #' must be returned.
 #'
 #' @param model_options List containing the information needed by the model.
@@ -23,7 +23,7 @@
 #'   `ecotype_filename`: name of the ecotype filename
 #'   `cultivar_filename`: name of the cultivar filename
 #'   `out_files`: names of the (time-series only) output files to read 
-#'   (by default, PlantGro.OUT, and PlantGR2.OUT for Wheat, are read)
+#'   (by default, PlantGro.OUT, Evaluate.OUT, and PlantGR2.OUT (only for Wheat), are read)
 #'   `suppress_output`: a logical value indicating whether to suppress DSSAT-CSM output 
 #'   from being printed to the console (TRUE by default)
 #'
@@ -250,7 +250,7 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
   tmp <- t(dplyr::bind_rows(sapply(situation,FUN = strsplit, "_")))
   experiment_files <- paste0(tmp[,1],".",crop_code,"X")
   if (ncol(tmp)==1) {
-    stop(paste0("situation names must be defined as EXPERIMENT_NAME_TRNO (e.g. ",
+    stop(paste0("situation names must be defined as ExperimentName_TRNO (e.g. ",
                 tmp[1,1],"_1), please check the content of the argument \"situation\"."))
   }
   TRNO <- as.integer(tmp[,2])
@@ -330,7 +330,7 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
         results$error <- TRUE
         warning(paste("TRNO",trno,"and/or EXPERIMENT",experiment,
                    "is/are not part of the DSSAT output files.",
-                   "\n Please check the situation names provided to the DSSAT wrapper (should be EXPERIMENT_NAME_TRNO)."))
+                   "\n Please check the situation names provided to the DSSAT wrapper (should be ExperimentName_TRNO)."))
       }
       
       pgro <- pgro[!duplicated(pgro$Date),]  # DSSAT sometimes include replicated lines in the .out file ...
@@ -388,11 +388,14 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
 
       # Select variables for which results are required      
       if (!is.null(var)) {
-        results$sim_list[[sit]] <- results$sim_list[[sit]] %>% dplyr::select(c("Date",all_of(var)))
-        if (nrow(results$sim_list[[sit]])==0) {
+        results$sim_list[[sit]] <- results$sim_list[[sit]] %>% dplyr::select(c("Date",any_of(var)))
+        if (!all(var %in% names(results$sim_list[[sit]]))) {
           results$error <- TRUE
-          warning(paste("No results found for variable(s)",var,
-                     "\n Please check the spelling of the variables listed in the var argument of the DSSAT wrapper."))
+          warning(paste("Situation",sit,": No results found for variable(s)",
+                        paste(setdiff(var,names(results$sim_list[[sit]])),collapse = ","),
+                     "\n Please check the spelling of the variables listed in the var argument of the DSSAT wrapper.",
+                     "\n Please note that by default the DSSAT_wrapper function only reads the output files PlantGro.OUT, Evaluate.OUT and PlantGR2.OUT (only for Wheat).",
+                     "In case the missing variable(s) is(are) located in other output file(s), please use the field out_files of the model_options argument to specify the additional output file(s) to read (see DSSAT_wrapper documentation)."))
         }
       }
       
