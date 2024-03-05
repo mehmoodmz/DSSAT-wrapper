@@ -31,12 +31,6 @@
 #' must be returned. If not provided, the function will return results for all simulated
 #' variables.
 #'
-#' @param sit_var_dates_mask (optional) A named list
-#' containing a mask for variables and dates for which simulated values
-#' should be returned. Typically a list containing the observations to which
-#' simulations should be compared. This wrapper use this mask to provide simulated values 
-#' after maturity date if required (see details).
-#'
 #' @return A list containing simulated values. It include 2 elements:
 #'   - `sim_list`: a named list of tibbles, one tibble per situation, each tibble contains a 
 #'                 column Date storing the dates in Date or POSIXct format, plus one column 
@@ -49,13 +43,6 @@
 #' @details This wrapper run the DSSAT model for an ensemble of situations (EXPERIMENT X Treatment number)
 #' and return associated results in cropr format.
 #'
-#' If argument sit_var_dates_mask is provided and different from NULL (which is the case during parameter estimation
-#' using the CroptimizR::estim_param function), and if maturity is reached before 
-#' the last date included in this mask for a given situation, then the simulated 
-#' results obtained at maturity are replicated up to this date.
-#' This guarantees the comparison of simulated and observed results regardless the 
-#' simulated maturity date (which may evolve during the calibration process).
-#' 
 #' This wrapper generates additional variable wrt to what is read in DSSAT OUT files.
 #' The julian day, from 1st jan. of sowing year, of each Zadok stage is given in 
 #' Zadok1 to Zadok100 variables, as interpolated from GSTD variable. If the corresponding
@@ -95,7 +82,7 @@ if(!require("lubridate")){
 }
 
 DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL, 
-                          sit_var_dates_mask = NULL, ...) {
+                          ...) {
   
   on.exit({
 
@@ -372,18 +359,6 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
         results$sim_list[[sit]] <- 
           dplyr::bind_cols(results$sim_list[[sit]],df)
         
-      }
-
-      if (!is.null(sit_var_dates_mask) & sit %in% names(sit_var_dates_mask)) {
-        end_date <- sit_var_dates_mask[[sit]]$Date[nrow(sit_var_dates_mask[[sit]])]
-        if (!(end_date %in% results$sim_list[[sit]]$Date)) {
-          dates_to_add <- seq(from = results$sim_list[[sit]]$Date[nrow(results$sim_list[[sit]])], 
-                              to=end_date, by = "days")[-1]
-          extension <- results$sim_list[[sit]] %>% 
-            dplyr::slice(rep(nrow(results$sim_list[[sit]]),each=length(dates_to_add)))
-          extension$Date <- dates_to_add
-          results$sim_list[[sit]] <- bind_rows(results$sim_list[[sit]], extension)
-        }
       }
 
       # Select variables for which results are required      
