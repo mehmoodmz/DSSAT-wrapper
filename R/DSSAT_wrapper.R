@@ -291,6 +291,7 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
                                   by= c("EXPERIMENT","TRNO"))
     }
     
+    # Read output files as request by the user in model_options$out_files
     for (out_file in setdiff(model_options$out_files,c("PlantGro.OUT","PlantGr2.OUT"))) {
       if (file.exists(file.path(project_path,out_file))) {
         pgr_tmp <- as.data.frame(read_output(file.path(project_path,out_file))) %>% dplyr::mutate(Date=DATE) %>% 
@@ -307,6 +308,7 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       warning(paste("Error reading DSSAT output files. No results found."))
     }
     
+    # Compute Zadok## variables 
     for (sit in situation) {
 
       experiment <- strsplit(sit,split="_")[[1]][1]
