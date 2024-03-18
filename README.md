@@ -30,7 +30,7 @@ You will find comments at the beginning of each function and script file.
 
 * First, install DSSAT if you haven't already (see https://get.dssat.net/request/?sft=4),
 * Then, install the DSSAT R Package if you haven't already (just by running `install.packages("DSSAT")` in R/Rstudio),
-* Then, install [CroptimizR](https://sticsrpacks.github.io/CroptimizR/) and [CroPlotR](https://sticsrpacks.github.io/CroPlotR/) (see section [What does it require?]), if you haven't already,
+* Then, install [CroptimizR](https://sticsrpacks.github.io/CroptimizR/) and [CroPlotR](https://sticsrpacks.github.io/CroPlotR/) (see section [What does it require?](#What-does-it-require?)), if you haven't already,
 * Then, download (or clone/fork) this repository (green button "Code"),
 * Open the DSSAT-wrapper.Rproj in RStudio, or, if you do not want to use RStudio, go, in R, to the main folder of your local copy of the repository,
 * The test_***.R scripts provided use by default DSSAT version 4.8, installed in C: drive, and the input files provided with it. If you have a different version of DSSAT or installed DSSAT in a different folder, you must modify the associated information in these scripts before running them.
