@@ -198,7 +198,7 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       }
       flag_cul_param = TRUE
       cul_paramNames <- intersect(param_names, cul_params)
-      idx <- which(cul$`VAR-NAME`==cultivar)
+      idx <- which(cul$`VAR#`==cultivar)
       if (length(idx)==0) {
         results$error <- TRUE
         warning(paste("Cultivar",cultivar,
@@ -271,11 +271,66 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
                                   by= c("Date","EXPERIMENT","TRNO"))
       flag_pgr2 <- TRUE
     }
+    
+    # Derive days taken to phenological stages from GSTD variable
+    # Get model_code
+    model_code <- substr(get("model_options", .GlobalEnv)$cultivar_filename, 3, 5)
 
+    # Rename DCCD to GSTD in case of NWHEAT
+    if("DCCD" %in% colnames(pgroTot)){
+      pgroTot <-
+        pgroTot %>%
+        select(-GSTD) %>%
+        rename(GSTD = DCCD)
+    }
+
+    # Define gstd_to_dt
+    gstd_to_dt <- function(pgro, model_code){
+
+      dtm_threshold <- switch(model_code,
+                              "CER" = 90,
+                              "CRP" = 89,
+                              "APS" = 90)
+      
+      not_changing <- switch(model_code,
+                             "CER" = FALSE,
+                             TRUE)
+      
+      get_dt <- function(dap, gstd, threshold, not_changing = FALSE){
+        if(not_changing){
+          .x <- dap[gstd >= threshold & diff(c(0, gstd)) == 0]
+        }else{
+          .x <- dap[gstd >= threshold]
+        }
+        if(length(.x) < 1){
+          365
+        }else{
+          min(.x)
+        }
+      }
+      
+      pgro |>
+        mutate(BBCH10 = get_dt(DAP, GSTD, 10),
+               BBCH30 = get_dt(DAP, GSTD, 30),
+               BBCH55 = get_dt(DAP, GSTD, 55),
+               BBCH90 = get_dt(DAP, GSTD, dtm_threshold, not_changing))
+    }
+
+    # Get gstd_to_dt
+    pgroTot <- gstd_to_dt(pgroTot, model_code)
+    
     # Add variables included in Evaluate.OUT
     if (file.exists(file.path(project_path,"Evaluate.OUT"))) {
       eval_df <- as.data.frame(read_output(file.path(project_path,"Evaluate.OUT"))) %>% dplyr::mutate(EXPERIMENT=EXCODE) %>%
         dplyr::select(-EXCODE)
+      
+      # Rename TN to GSTD in case of NWHEAT
+      if(model_code == "APS"){
+        eval_df <-
+          eval_df %>%
+          rename(TRNO = TN)
+        }
+        
       # in evaluate.OUT file the experiment code include the crop code at the end :-/
       eval_df$EXPERIMENT <- sapply(eval_df$EXPERIMENT,function(x) substr(x,1,nchar(x)-2))
       # Select only simulated variables
@@ -284,6 +339,8 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       eval_df <- select(eval_df, c("EXPERIMENT","TRNO",sim_var_names))
       # remove end char S to var names
       names(eval_df)[3:ncol(eval_df)] <- sapply(sim_var_names,function(x) substr(x,1,nchar(x)-1))
+      
+      eval_df <- eval_df %>% mutate(`HP%M` =  `HN%M`*6.25)
 
       pgroTot <- dplyr::left_join(pgroTot,
                                   eval_df[,c("EXPERIMENT","TRNO",
@@ -376,7 +433,14 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
         }
       }
       
+      # Add last day of year to results
+      results$sim_list[[sit]] <- 
+        results$sim_list[[sit]] %>%
+        filter(Date == max(Date)) %>%
+        mutate(Date = as.POSIXct(paste0(year(Date), "-12-31"), tz= "UTC")) %>% 
+        bind_rows(results$sim_list[[sit]], .)
     }
+    
     
     attr(results$sim_list, "class")= "cropr_simulation"
     
