@@ -324,11 +324,13 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       eval_df <- as.data.frame(read_output(file.path(project_path,"Evaluate.OUT"))) %>% dplyr::mutate(EXPERIMENT=EXCODE) %>%
         dplyr::select(-EXCODE)
       
-      # Rename TN to GSTD in case of NWHEAT
+      # In case of NWHEAT
       if(model_code == "APS"){
         eval_df <-
           eval_df %>%
-          rename(TRNO = TN)
+          rename(TRNO = TN,
+                 `HN%MS` = `GN%MS`) %>%
+          mutate(`VN%MS` = CNAMS/CWAMS*100)
         }
         
       # in evaluate.OUT file the experiment code include the crop code at the end :-/
