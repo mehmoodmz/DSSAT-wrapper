@@ -310,10 +310,12 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       }
       
       pgro |>
+        group_by(TRNO) |>
         mutate(BBCH10 = get_dt(DAP, GSTD, 10),
                BBCH30 = get_dt(DAP, GSTD, 30),
                BBCH55 = get_dt(DAP, GSTD, 55),
-               BBCH90 = get_dt(DAP, GSTD, dtm_threshold, not_changing))
+               BBCH90 = get_dt(DAP, GSTD, dtm_threshold, not_changing)) |>
+        ungroup()
     }
 
     # Get gstd_to_dt
