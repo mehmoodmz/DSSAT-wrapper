@@ -271,10 +271,9 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
                                   by= c("Date","EXPERIMENT","TRNO"))
       flag_pgr2 <- TRUE
     }
-    
-    # Derive days taken to phenological stages from GSTD variable
+
     # Get model_code
-    model_code <- substr(get("model_options", .GlobalEnv)$cultivar_filename, 3, 5)
+    model_code <- substr(get("model_options", .GlobalEnv)$cultivar_filename, 3, 5)    
 
     # Rename DCCD to GSTD in case of NWHEAT
     if("DCCD" %in% colnames(pgroTot)){
@@ -283,43 +282,6 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
         select(-GSTD) %>%
         rename(GSTD = DCCD)
     }
-
-    # Define gstd_to_dt
-    gstd_to_dt <- function(pgro, model_code){
-
-      dtm_threshold <- switch(model_code,
-                              "CER" = 90,
-                              "CRP" = 89,
-                              "APS" = 90)
-      
-      not_changing <- switch(model_code,
-                             "CER" = FALSE,
-                             TRUE)
-      
-      get_dt <- function(dap, gstd, threshold, not_changing = FALSE){
-        if(not_changing){
-          .x <- dap[gstd >= threshold & diff(c(0, gstd)) == 0]
-        }else{
-          .x <- dap[gstd >= threshold]
-        }
-        if(length(.x) < 1){
-          365
-        }else{
-          min(.x)
-        }
-      }
-      
-      pgro |>
-        group_by(TRNO) |>
-        mutate(BBCH10 = get_dt(DAP, GSTD, 10),
-               BBCH30 = get_dt(DAP, GSTD, 30),
-               BBCH55 = get_dt(DAP, GSTD, 55),
-               BBCH90 = get_dt(DAP, GSTD, dtm_threshold, not_changing)) |>
-        ungroup()
-    }
-
-    # Get gstd_to_dt
-    pgroTot <- gstd_to_dt(pgroTot, model_code)
     
     # Add variables included in Evaluate.OUT
     if (file.exists(file.path(project_path,"Evaluate.OUT"))) {
@@ -344,7 +306,6 @@ DSSAT_wrapper <- function(param_values=NULL, situation, model_options, var=NULL,
       # remove end char S to var names
       names(eval_df)[3:ncol(eval_df)] <- sapply(sim_var_names,function(x) substr(x,1,nchar(x)-1))
       
-      eval_df <- eval_df %>% mutate(`HP%M` =  `HN%M`*6.25)
 
       pgroTot <- dplyr::left_join(pgroTot,
                                   eval_df[,c("EXPERIMENT","TRNO",
